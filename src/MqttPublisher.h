@@ -6,6 +6,7 @@
 #include "MQTT.h"
 #include <string.h>
 #include <sml/sml_file.h>
+#include <TimeLib.h>
 
 struct MqttConfig
 {
@@ -75,15 +76,26 @@ public:
                 }
 
                 char obisIdentifier[32];
+                char OID[32];
                 char buffer[255];
 
-                sprintf(obisIdentifier, "%d-%d:%d.%d.%d/%d",
-                        entry->obj_name->str[0], entry->obj_name->str[1],
+                sprintf(OID, "%d.%d.%d",
                         entry->obj_name->str[2], entry->obj_name->str[3],
-                        entry->obj_name->str[4], entry->obj_name->str[5]);
+                        entry->obj_name->str[4]);
 
-                String entryTopic = baseTopic + "sensor/" + (sensor->config->name) + "/obis/" + obisIdentifier + "/";
-                
+                String OIDs = OID;
+
+                if (OIDs.equals("1.8.0") || OIDs.equals("2.8.0") || OIDs.equals("16.7.0")) {
+                  if (OIDs.equals("1.8.0")) {
+                    OIDs = "Total_in";
+                  }
+                  else if (OIDs.equals("2.8.0")) {
+                    OIDs = "Total_out";
+                  }
+                  else if (OIDs.equals("16.7.0")) {
+                    OIDs = "Power_curr";
+                  }
+
                 if (((entry->value->type & SML_TYPE_FIELD) == SML_TYPE_INTEGER) ||
                          ((entry->value->type & SML_TYPE_FIELD) == SML_TYPE_UNSIGNED))
                 {
@@ -93,22 +105,59 @@ public:
                     if (prec < 0)
                         prec = 0;
                     value = value * pow(10, scaler);
+                    if (OIDs.startsWith("Total_")) {
+                      value = value / 1000.0;
+                    }
                     sprintf(buffer, "%.*f", prec, value);
-                    publish(entryTopic + "value", buffer);
+                    char ts[24];
+                    sprintf(ts, "%4d-%02d-%02dT%02d:%02d:%02d", 
+                        year(timeClient.getEpochTime()), 
+                        month(timeClient.getEpochTime()), 
+                        day(timeClient.getEpochTime()), 
+                        hour(timeClient.getEpochTime()), 
+                        minute(timeClient.getEpochTime()), 
+                        second(timeClient.getEpochTime()));
+                    String tss = ts;
+                    String payload = "{\"Time\":\"" + tss + "\",\"ENERGY\":{\"" + OIDs + "\":" + value + "}}";
+                    DEBUG(payload.c_str());
+                    publish("tele/tasmota_SMLSML/SENSOR", payload);
                 }
                 else if (!sensor->config->numeric_only) {
                   if (entry->value->type == SML_TYPE_OCTET_STRING)
                   {
                       char *value;
                       sml_value_to_strhex(entry->value, &value, true);
-                      publish(entryTopic + "value", value);
+                      char ts[24];
+                      sprintf(ts, "%4d-%02d-%02dT%02d:%02d:%02d", 
+                          year(timeClient.getEpochTime()), 
+                          month(timeClient.getEpochTime()), 
+                          day(timeClient.getEpochTime()), 
+                          hour(timeClient.getEpochTime()), 
+                          minute(timeClient.getEpochTime()), 
+                          second(timeClient.getEpochTime()));
+                      String tss = ts;
+                      String payload = "{\"Time\":\"" + tss + "\",\"ENERGY\":{\"" + OIDs + "\":" + buffer + "}}";
+                      DEBUG(payload.c_str());
+                      publish("tele/tasmota_SMLSML/SENSOR", payload);
                       free(value);
                   }
                   else if (entry->value->type == SML_TYPE_BOOLEAN)
                   {
-                      publish(entryTopic + "value",  entry->value->data.boolean ? "true" : "false");
+                    char ts[24];
+                    sprintf(ts, "%4d-%02d-%02dT%02d:%02d:%02d", 
+                        year(timeClient.getEpochTime()), 
+                        month(timeClient.getEpochTime()), 
+                        day(timeClient.getEpochTime()), 
+                        hour(timeClient.getEpochTime()), 
+                        minute(timeClient.getEpochTime()), 
+                        second(timeClient.getEpochTime()));
+                    String tss = ts;
+                    String payload = "{\"Time\":\"" + tss + "\",\"ENERGY\":{\"" + OIDs + "\":" + (entry->value->data.boolean ? "true" : "false") + "}}";
+                    DEBUG(payload.c_str());
+                    publish("tele/tasmota_SMLSML/SENSOR", payload);
                   }
                 }
+            }
             }
         }
     }

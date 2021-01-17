@@ -32,7 +32,6 @@ IotWebConfParameter params[] = {
 boolean needReset = false;
 boolean connected = false;
 
-
 void process_message(byte *buffer, size_t len, Sensor *sensor)
 {
 	// Parse
@@ -97,6 +96,7 @@ void setup()
 	{
 		// Setup MQTT publisher
 		publisher.setup(mqttConfig);
+		timeClient.begin();
 	}
 
 	server.on("/", [] { iotWebConf.handleConfig(); });
@@ -110,6 +110,7 @@ void loop()
 	// Publisher
 	if (connected) {
 		publisher.loop();
+		timeClient.update();
 		yield();
 	}
 

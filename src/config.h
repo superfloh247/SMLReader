@@ -3,6 +3,8 @@
 
 #include "Arduino.h"
 #include "Sensor.h"
+#include <NTPClient.h>
+#include <WiFiUdp.h>
 
 const char *VERSION = "2.1.6";
 
@@ -12,6 +14,9 @@ const char *CONFIG_VERSION = "1.0.2";
 
 const char *WIFI_AP_SSID = "SMLReader";
 const char *WIFI_AP_DEFAULT_PASSWORD = "";
+
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, 3600);
 
 static const SensorConfig SENSOR_CONFIGS[] = {
     {.pin = D2,
